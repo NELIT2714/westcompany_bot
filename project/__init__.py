@@ -1,11 +1,14 @@
 import json
-
 import discord
-from discord.ext import commands
+import asyncio
 
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
+from discord.ext import commands
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+
 
 # Intents
 intents = discord.Intents.default()
@@ -38,6 +41,16 @@ Session = sessionmaker(bind=engine)
 Base = declarative_base()
 
 bot.version = config["bot"]["version"]
+salary = config["other"]["salary"]["daily-task"]
+
+from project.functions import cron_send_statistics
+
+scheduler = AsyncIOScheduler()
+scheduler.add_job(
+    cron_send_statistics,
+    CronTrigger(day_of_week="sun", hour=23, minute=59),
+    id="send_statistics"
+)
 
 contracts = [
     {"name": "Монетный двор", "cooldown": 24, "price": 100000, "reward": 500000,

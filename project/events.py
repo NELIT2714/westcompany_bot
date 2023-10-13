@@ -12,7 +12,7 @@ async def on_ready():
     bot.start_time = datetime.datetime.now()
     Base.metadata.create_all(engine)
     await bot.change_presence(
-        status=discord.Status.online,
+        status=discord.Status.offline,
         activity=discord.Game(name="Arizona V")
     )
     print(f"Logged in as {bot.user.name} | ID: {bot.user.id}")

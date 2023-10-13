@@ -1,22 +1,17 @@
 import datetime
 import re
 import asyncio
-
 import discord
+
 from discord.ext import commands
 from discord.commands import Option
-
 from project import bot, contracts, engine, Base, Session, tasks
 from project.models import Contracts, Coffers, DailyTasks, Users, Warehouse
-
 from sqlalchemy import cast, Date, or_, and_
+from project.functions import is_owner, cron_send_statistics
 
 ALLOWED_ADMIN_ROLES = [1150827736596758540, 1150827802568962098, 1159747509644709938, 1150829408484069506, 1160565342599389307]
 contract_choices = [contract["name"] for contract in contracts]
-
-def is_owner(ctx):
-    return ctx.author.id == 463277343150964738
-
 
 @bot.slash_command(name="сбор", description="Отправляет сообщение о сборе всех участников сообщества в игре.")
 async def collection(ctx: discord.ApplicationContext, *, message: str):
@@ -688,6 +683,7 @@ async def member_cmd(ctx: discord.ApplicationContext,
             try:
                 with Session() as session:
                     user.nickname = nickname
+                    session.add(user)
                     session.commit()
             except Exception as error:
                 session.rollback()
@@ -1003,3 +999,7 @@ async def db(ctx: discord.ApplicationContext):
 
     await ctx.message.delete()
     await channel.send(embeds=[embed_info_1, embed_info_2, embed_info_3, embed_info_4])
+
+@bot.command("test")
+async def test(ctx):
+    await cron_send_statistics()
