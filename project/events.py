@@ -1,7 +1,7 @@
 import discord
 import datetime
 
-from project import bot, contracts, engine, Base, Session
+from project import bot, contracts, engine, Base, Session, config, admin_roles
 from project.models import Contracts, Coffers, DailyTasks, Users
 
 from sqlalchemy import cast, Date, or_, and_
@@ -20,8 +20,8 @@ async def on_ready():
 
 @bot.event
 async def on_member_join(member):
-    guest_role = discord.utils.get(member.guild.roles, id=1107296934936445019)
-    channel = member.guild.get_channel(1107937447129653288)
+    guest_role = discord.utils.get(member.guild.roles, id=config["guild"]["ids-list"]["roles"]["guest"])
+    channel = member.guild.get_channel(config["guild"]["ids-list"]["channels"]["greetings"])
 
     embed_after_join = discord.Embed(
         title="Новый участник",
@@ -35,18 +35,20 @@ async def on_member_join(member):
     await member.add_roles(guest_role)
     await channel.send(f"{member.mention}", embed=embed_after_join)
 
-    user = session.query(Users).filter_by(discord_user=member.id).first()
+    with Session() as session:
+        user = session.query(Users).filter_by(discord_user=member.id).first()
 
     if not user is None:
-        member_role = discord.utils.get(member.guild.roles, id=1107286502825795624)
+        member_role = discord.utils.get(member.guild.roles, id=config["guild"]["ids-list"]["roles"]["member"])
 
         await member.add_roles(member_role)
         await member.edit(nick=user.nickname)
 
 @bot.event
 async def on_member_update(before, after):
-    guest_role = discord.utils.get(after.guild.roles, id=1107296934936445019)
-    member_role = discord.utils.get(after.guild.roles, id=1107286502825795624)
+    guest_role = discord.utils.get(after.guild.roles, id=config["guild"]["ids-list"]["roles"]["guest"])
+    member_role = discord.utils.get(after.guild.roles, id=config["guild"]["ids-list"]["roles"]["member"])
+    highrank = discord.utils.get(after.guild.roles, id=config["guild"]["ids-list"]["roles"]["highrank"])
 
     if member_role in after.roles:
         with Session() as session:
@@ -60,6 +62,10 @@ async def on_member_update(before, after):
             )
             await after.remove_roles(member_role)
             await after.send(embed=embed_error)
+
+    for admin_role in admin_roles:
+        if admin_role in after.roles:
+            await after.add_roles(highrank)
 
     if len(after.roles) == 1 and not guest_role in after.roles:
         await after.add_roles(guest_role)

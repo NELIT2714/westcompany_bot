@@ -5,18 +5,20 @@ import discord
 
 from discord.ext import commands
 from discord.commands import Option
-from project import bot, contracts, engine, Base, Session, tasks
+from project import bot, contracts, engine, Base, Session, tasks, config, admin_roles
 from project.models import Contracts, Coffers, DailyTasks, Users, Warehouse
 from sqlalchemy import cast, Date, or_, and_
 from project.functions import is_owner, cron_send_statistics
 
-ALLOWED_ADMIN_ROLES = [1150827736596758540, 1150827802568962098, 1159747509644709938, 1150829408484069506, 1160565342599389307]
 contract_choices = [contract["name"] for contract in contracts]
 
-@bot.slash_command(name="сбор", description="Отправляет сообщение о сборе всех участников сообщества в игре.")
+@bot.slash_command(name="объявление", description="Отправляет объявление всем участникам сообщества.")
 async def collection(ctx: discord.ApplicationContext, *, message: str):
     with Session() as session:
         user = session.query(Users).filter_by(discord_user=ctx.author.id).first()
+
+    channel_ads = ctx.guild.get_channel(config["guild"]["ids-list"]["channels"]["ads"])
+    role_member = ctx.guild.get_role(config["guild"]["ids-list"]["roles"]["member"])
 
     if ctx.channel.type == discord.ChannelType.private:
         embed_error = discord.Embed(
@@ -27,7 +29,7 @@ async def collection(ctx: discord.ApplicationContext, *, message: str):
         await ctx.defer(ephemeral=True)
         return await ctx.respond(embed=embed_error, ephemeral=True)
 
-    if not any(admin_role.id in ALLOWED_ADMIN_ROLES for admin_role in ctx.author.roles):
+    if not any(admin_role.id in admin_roles for admin_role in ctx.author.roles):
         embed_error = discord.Embed(
             title="Ошибка",
             description="У вас нет прав",
@@ -36,7 +38,7 @@ async def collection(ctx: discord.ApplicationContext, *, message: str):
         await ctx.defer(ephemeral=True)
         return await ctx.respond(embed=embed_error, ephemeral=True)
 
-    if user is None and not ctx.author.id == 463277343150964738:
+    if user is None:
         embed_error = discord.Embed(
             title="Ошибка",
             description="Перед использованием команд вам должны добавить ник.",
@@ -45,26 +47,23 @@ async def collection(ctx: discord.ApplicationContext, *, message: str):
         await ctx.defer(ephemeral=True)
         return await ctx.respond(embed=embed_error, ephemeral=True)
 
-    if not ctx.channel_id == 1150834041419989164:
+    if not ctx.channel_id == config["guild"]["ids-list"]["channels"]["ads"]:
         embed_error = discord.Embed(
             title="Ошибка",
-            description=f"Вы не можете использовать эту команду здесь. Команда может быть использована в <#1150834041419989164>",
+            description=f"Вы не можете использовать эту команду здесь. Команда может быть использована в {channel_ads.mention}",
             color=discord.Color(0xFF0000)
         )
         await ctx.defer(ephemeral=True)
         return await ctx.respond(embed=embed_error, ephemeral=True)
 
-    channel = ctx.guild.get_channel(1150831407627763803)
-    role_member = ctx.guild.get_role(1107286502825795624)
-
     embed = discord.Embed(
-        title="Сбор участников сообщества",
-        description=f"Объявлён общий сбор участников сообщества в игре.\nСообщение: {message}",
+        title="Новое объявление",
+        description=message,
         color=discord.Color(0xFFFFFF)
     )
     embed.set_thumbnail(url=bot.user.avatar.url)
     embed.set_author(name=user.nickname, icon_url=ctx.author.avatar.url)
-    embed.set_footer(text=f"Отправитель: {user.nickname}", icon_url=ctx.author.avatar.url)
+    embed.set_footer(text="WestCompany Bot", icon_url=bot.user.avatar.url)
 
     embed_success = discord.Embed(
         title="Успешно",
@@ -72,7 +71,7 @@ async def collection(ctx: discord.ApplicationContext, *, message: str):
         color=discord.Color(0x18B542)
     )
 
-    await ctx.defer()
+    await ctx.defer(ephemeral=True)
 
     for member in ctx.guild.members:
         if not member == bot.user and role_member in member.roles:
@@ -84,17 +83,19 @@ async def collection(ctx: discord.ApplicationContext, *, message: str):
             continue
 
     await channel.send(role_member.mention, embed=embed)
-    await ctx.respond(embed=embed_success)
+    await ctx.respond(embed=embed_success, ephemeral=True)
     await asyncio.gather(*tasks)
 
 
-@bot.slash_command(name="контракт", description="Заполнение информации о выполненом/не выполненом контракте")
+@bot.slash_command(name="контракт", description="Заполнение информации о контракте")
 async def contract(ctx: discord.ApplicationContext,
                    contract: Option(str, description="Выберите тип контракта", choices=contract_choices),
                    status: Option(str, description="Выберите статус контракта", choices=["Выполнен", "Не выполнен", "Взят (в процессе выполнения)"])):
 
     with Session() as session:
         user = session.query(Users).filter_by(discord_user=ctx.author.id).first()
+
+    channel_contracts = ctx.guild.get_channel(config["guild"]["ids-list"]["channels"]["contracts"])
 
     if ctx.channel.type == discord.ChannelType.private:
         embed_error = discord.Embed(
@@ -105,7 +106,7 @@ async def contract(ctx: discord.ApplicationContext,
         await ctx.defer(ephemeral=True)
         return await ctx.respond(embed=embed_error, ephemeral=True)
 
-    if not any(admin_role.id in ALLOWED_ADMIN_ROLES for admin_role in ctx.author.roles):
+    if not any(admin_role.id in admin_roles for admin_role in ctx.author.roles):
         embed_error = discord.Embed(
             title="Ошибка",
             description="У вас нет прав",
@@ -114,7 +115,7 @@ async def contract(ctx: discord.ApplicationContext,
         await ctx.defer(ephemeral=True)
         return await ctx.respond(embed=embed_error, ephemeral=True)
 
-    if user is None and not ctx.author.id == 463277343150964738:
+    if user is None:
         embed_error = discord.Embed(
             title="Ошибка",
             description="Перед использованием команд вам должны добавить ник.",
@@ -123,10 +124,10 @@ async def contract(ctx: discord.ApplicationContext,
         await ctx.defer(ephemeral=True)
         return await ctx.respond(embed=embed_error, ephemeral=True)
 
-    if not ctx.channel_id == 1152728209213882500:
+    if not ctx.channel_id == config["guild"]["ids-list"]["channels"]["contracts"]:
         embed_error = discord.Embed(
             title="Ошибка",
-            description=f"Вы не можете использовать эту команду здесь. Команда может быть использована в <#1152728209213882500>.",
+            description=f"Вы не можете использовать эту команду здесь. Команда может быть использована в {channel_contracts.mention}",
             color=discord.Color(0xFF0000)
         )
         await ctx.defer(ephemeral=True)
@@ -176,7 +177,8 @@ async def contract(ctx: discord.ApplicationContext,
         embed_success.add_field(name="Награда за выполнение",
                                 value=f"{'{0:,}'.format(found_contract_info['reward']).replace(',', '.')}$",
                                 inline=False)
-        embed_success.set_footer(text=f"Отправитель: {user.nickname}", icon_url=ctx.author.avatar.url)
+        embed_success.set_author(name=user.nickname, icon_url=ctx.author.avatar.url)
+        embed_success.set_footer(text="WestCompany Bot", icon_url=bot.user.avatar.url)
 
         await ctx.defer()
         await ctx.respond(embed=embed_success)
@@ -213,13 +215,14 @@ async def contract(ctx: discord.ApplicationContext,
         embed_fail.add_field(name="Цена контракта",
                              value=f"{'{0:,}'.format(found_contract_info['price']).replace(',', '.')}$",
                              inline=False)
-        embed_fail.set_footer(text=f"Отправитель: {user.nickname}", icon_url=ctx.author.avatar.url)
+        embed_fail.set_author(name=user.nickname, icon_url=ctx.author.avatar.url)
+        embed_fail.set_footer(text="WestCompany Bot", icon_url=bot.user.avatar.url)
 
         await ctx.defer()
         await ctx.respond(embed=embed_fail)
     elif "Взят (в процессе выполнения)":
-        channel = ctx.guild.get_channel(1150831407627763803)
-        role_member = ctx.guild.get_role(1107286502825795624)
+        channel_ads = ctx.guild.get_channel(config["guild"]["ids-list"]["channels"]["ads"])
+        role_member = ctx.guild.get_role(config["guild"]["ids-list"]["roles"]["member"])
 
         embed = discord.Embed(
             title="Взят новый контракт",
@@ -233,6 +236,7 @@ async def contract(ctx: discord.ApplicationContext,
             color=discord.Color(0x18B542)
         )
 
+        embed.set_author(name=user.nickname, icon_url=ctx.author.avatar.url)
         embed.set_footer(text="WestCompany Bot", icon_url=bot.user.avatar.url)
         embed.set_thumbnail(url=bot.user.avatar.url)
 
@@ -247,7 +251,7 @@ async def contract(ctx: discord.ApplicationContext,
             else:
                 continue
 
-        await channel.send(role_member.mention, embed=embed)
+        await channel_ads.send(role_member.mention, embed=embed)
         await ctx.respond(embed=embed_success, ephemeral=True)
         await asyncio.gather(*tasks)
 
@@ -255,10 +259,12 @@ async def contract(ctx: discord.ApplicationContext,
 @bot.slash_command(name="склад", description="Отправляет отчётность по складу")
 async def warehouse(ctx: discord.ApplicationContext,
                     action: Option(str, description="Выберите действие, которое было произведено с предметом", choices=["Взял", "Положил"]),
-                    *, item: Option(str, description="Укажите название передмета (предметов)")):
+                    *, item: Option(str, description="Укажите название передмета/предметов")):
 
     with Session() as session:
         user = session.query(Users).filter_by(discord_user=ctx.author.id).first()
+
+    channel_warehouse = ctx.guild.get_channel(config["guild"]["ids-list"]["channels"]["warehouse"])
 
     if ctx.channel.type == discord.ChannelType.private:
         embed_error = discord.Embed(
@@ -269,7 +275,7 @@ async def warehouse(ctx: discord.ApplicationContext,
         await ctx.defer(ephemeral=True)
         return await ctx.respond(embed=embed_error, ephemeral=True)
 
-    if not any(admin_role.id in ALLOWED_ADMIN_ROLES for admin_role in ctx.author.roles):
+    if not any(admin_role.id in admin_roles for admin_role in ctx.author.roles):
         embed_error = discord.Embed(
             title="Ошибка",
             description="У вас нет прав",
@@ -278,7 +284,7 @@ async def warehouse(ctx: discord.ApplicationContext,
         await ctx.defer(ephemeral=True)
         return await ctx.respond(embed=embed_error, ephemeral=True)
 
-    if user is None and not ctx.author.id == 463277343150964738:
+    if user is None:
         embed_error = discord.Embed(
             title="Ошибка",
             description="Перед использованием команд вам должны добавить ник.",
@@ -287,10 +293,10 @@ async def warehouse(ctx: discord.ApplicationContext,
         await ctx.defer(ephemeral=True)
         return await ctx.respond(embed=embed_error, ephemeral=True)
 
-    if not ctx.channel_id == 1152570528842928168:
+    if not ctx.channel_id == config["guild"]["ids-list"]["channels"]["warehouse"]:
         embed_error = discord.Embed(
             title="Ошибка",
-            description=f"Вы не можете использовать эту команду здесь. Команда может быть использована в <#1152570528842928168>.",
+            description=f"Вы не можете использовать эту команду здесь. Команда может быть использована в {channel_warehouse.mention}",
             color=discord.Color(0xFF0000)
         )
         await ctx.defer(ephemeral=True)
@@ -324,7 +330,9 @@ async def warehouse(ctx: discord.ApplicationContext,
     embed_warehouse.add_field(name="Пользователь", value=ctx.author.mention, inline=False)
     embed_warehouse.add_field(name="Ник", value=user.nickname, inline=False)
     embed_warehouse.add_field(name="Действие", value=action, inline=False)
-    embed_warehouse.add_field(name="Передмет (предметы)", value=item, inline=False)
+    embed_warehouse.add_field(name="Передмет/предметы", value=item, inline=False)
+    embed_warehouse.set_author(name=user.nickname, icon_url=ctx.author.avatar.url)
+    embed_warehouse.set_footer(text="WestCompany Bot", icon_url=bot.user.avatar.url)
 
     embed_warehouse.timestamp = datetime.datetime.now()
 
@@ -334,12 +342,13 @@ async def warehouse(ctx: discord.ApplicationContext,
 
 @bot.slash_command(name="казна", description="Отправляет отчётность по казне")
 async def coffers(ctx: discord.ApplicationContext,
-                  action: Option(str, description="Выберите действие, которое было произведено с деньгами",
-                                 choices=["Взял", "Положил"]),
+                  action: Option(str, description="Выберите действие, которое было произведено с деньгами", choices=["Взял", "Положил"]),
                   *, amount: Option(int, description="Укажите сумму, с которой была произведена операция")):
 
     with Session() as session:
         user = session.query(Users).filter_by(discord_user=ctx.author.id).first()
+
+    channel_coffers = ctx.guild.get_channel(config["guild"]["ids-list"]["channels"]["coffers"])
 
     if ctx.channel.type == discord.ChannelType.private:
         embed_error = discord.Embed(
@@ -350,7 +359,7 @@ async def coffers(ctx: discord.ApplicationContext,
         await ctx.defer(ephemeral=True)
         return await ctx.respond(embed=embed_error, ephemeral=True)
 
-    if not any(admin_role.id in ALLOWED_ADMIN_ROLES for admin_role in ctx.author.roles):
+    if not any(admin_role.id in admin_roles for admin_role in ctx.author.roles):
         embed_error = discord.Embed(
             title="Ошибка",
             description="У вас нет прав",
@@ -359,7 +368,7 @@ async def coffers(ctx: discord.ApplicationContext,
         await ctx.defer(ephemeral=True)
         return await ctx.respond(embed=embed_error, ephemeral=True)
 
-    if user is None and not ctx.author.id == 463277343150964738:
+    if user is None:
         embed_error = discord.Embed(
             title="Ошибка",
             description="Перед использованием команд вам должны добавить ник.",
@@ -368,10 +377,10 @@ async def coffers(ctx: discord.ApplicationContext,
         await ctx.defer(ephemeral=True)
         return await ctx.respond(embed=embed_error, ephemeral=True)
 
-    if not ctx.channel_id == 1152570793050521741:
+    if not ctx.channel_id == config["guild"]["ids-list"]["channels"]["coffers"]:
         embed_error = discord.Embed(
             title="Ошибка",
-            description=f"Вы не можете использовать эту команду здесь. Команда может быть использована в <#1152570793050521741>.",
+            description=f"Вы не можете использовать эту команду здесь. Команда может быть использована в {channel_coffers.mention}",
             color=discord.Color(0xFF0000)
         )
         await ctx.defer(ephemeral=True)
@@ -415,6 +424,8 @@ async def coffers(ctx: discord.ApplicationContext,
     embed_coffers.add_field(name="Ник", value=user.nickname, inline=False)
     embed_coffers.add_field(name="Действие", value=action, inline=False)
     embed_coffers.add_field(name="Сумма денег", value=f"{'{0:,}'.format(amount).replace(',', '.')}$", inline=False)
+    embed_coffers.set_author(name=user.nickname, icon_url=ctx.author.avatar.url)
+    embed_coffers.set_footer(text="WestCompany Bot", icon_url=bot.user.avatar.url)
 
     embed_coffers.timestamp = datetime.datetime.now()
 
@@ -430,6 +441,8 @@ async def rept(ctx: discord.ApplicationContext,
     with Session() as session:
         user = session.query(Users).filter_by(discord_user=ctx.author.id).first()
 
+    channel_daily_tasks = ctx.guild.get_channel(config["guild"]["ids-list"]["channels"]["daily-tasks"])
+
     if ctx.channel.type == discord.ChannelType.private:
         embed_error = discord.Embed(
             title="Ошибка",
@@ -440,22 +453,22 @@ async def rept(ctx: discord.ApplicationContext,
         await ctx.defer(ephemeral=True)
         return await ctx.respond(embed=embed_error, ephemeral=True)
 
-    if not ctx.channel_id == 1154735367157727274:  # Канал "Отчёт ежедневок"
-        embed_error = discord.Embed(
-            title="Ошибка",
-            description="Вы не можете использовать эту команду здесь. Команда может быть использованы только в <#1154735367157727274>",
-            color=discord.Color(0xFF0000)
-        )
-
-        await ctx.defer(ephemeral=True)
-        return await ctx.respond(embed=embed_error, ephemeral=True)
-
-    if user is None and not ctx.author.id == 463277343150964738:
+    if user is None:
         embed_error = discord.Embed(
             title="Ошибка",
             description="Перед использованием команд вам должны добавить ник.",
             color=discord.Color(0xFF0000)
         )
+        await ctx.defer(ephemeral=True)
+        return await ctx.respond(embed=embed_error, ephemeral=True)
+
+    if not ctx.channel_id == config["guild"]["ids-list"]["channels"]["daily-tasks"]:
+        embed_error = discord.Embed(
+            title="Ошибка",
+            description=f"Вы не можете использовать эту команду здесь. Команда может быть использована в {channel_daily_tasks.mention}",
+            color=discord.Color(0xFF0000)
+        )
+
         await ctx.defer(ephemeral=True)
         return await ctx.respond(embed=embed_error, ephemeral=True)
 
@@ -497,12 +510,14 @@ async def rept(ctx: discord.ApplicationContext,
     embed.add_field(name="Ник", value=user.nickname, inline=False)
     embed.add_field(name="Дата", value=str(current_datetime.date().strftime("%d-%m-%Y")), inline=False)
     embed.add_field(name="Скриншоты", value=url, inline=False)
+    embed.set_author(name=user.nickname, icon_url=ctx.author.avatar.url)
+    embed.set_footer(text="WestCompany Bot", icon_url=bot.user.avatar.url)
 
     await ctx.defer()
     await ctx.respond(embed=embed)
 
 
-@bot.slash_command(name="участник", description="Позволяет добавить или удалить участнику ник")
+@bot.slash_command(name="участник", description="Позволяет добавить или удалить ник участнику")
 async def member_cmd(ctx: discord.ApplicationContext,
                  action: Option(str, description="Выберите действие с указанным участником", choices=["Добавить", "Удалить", "Изменить", "Информация"]),
                  member: discord.Member,
@@ -511,7 +526,8 @@ async def member_cmd(ctx: discord.ApplicationContext,
     with Session() as session:
         user = session.query(Users).filter_by(discord_user=ctx.author.id).first()
 
-    member_role = discord.utils.get(ctx.guild.roles, id=1107286502825795624)
+    commands_channel = ctx.guild.get_channel(config["guild"]["ids-list"]["channels"]["commands"])
+    member_role = ctx.guild.get_role(config["guild"]["ids-list"]["roles"]["member"])
 
     if member == bot.user:
         embed_error = discord.Embed(
@@ -531,7 +547,7 @@ async def member_cmd(ctx: discord.ApplicationContext,
         await ctx.defer(ephemeral=True)
         return await ctx.respond(embed=embed_error, ephemeral=True)
 
-    if not any(admin_role.id in ALLOWED_ADMIN_ROLES for admin_role in ctx.author.roles):
+    if not any(admin_role.id in admin_roles for admin_role in ctx.author.roles):
         if member.id == 463277343150964738 and not ctx.author.id == 463277343150964738:
             embed_error = discord.Embed(
                 title="Ошибка",
@@ -541,7 +557,7 @@ async def member_cmd(ctx: discord.ApplicationContext,
             await ctx.defer(ephemeral=True)
             return await ctx.respond(embed=embed_error, ephemeral=True)
 
-    if user is None and not ctx.author.id == 463277343150964738:
+    if user is None and not is_owner(ctx):
         embed_error = discord.Embed(
             title="Ошибка",
             description="Перед использованием команд вам должны добавить ник.",
@@ -550,10 +566,10 @@ async def member_cmd(ctx: discord.ApplicationContext,
         await ctx.defer(ephemeral=True)
         return await ctx.respond(embed=embed_error, ephemeral=True)
 
-    if not ctx.channel_id == 1150834041419989164:
+    if not ctx.channel_id == config["guild"]["ids-list"]["channels"]["commands"]:
         embed_error = discord.Embed(
             title="Ошибка",
-            description=f"Вы не можете использовать эту команду здесь. Команда может быть использована в <#1150834041419989164>.",
+            description=f"Вы не можете использовать эту команду здесь. Команда может быть использована в {commands_channel.mention}",
             color=discord.Color(0xFF0000)
         )
         await ctx.defer(ephemeral=True)
@@ -697,8 +713,10 @@ async def member_cmd(ctx: discord.ApplicationContext,
                 await ctx.defer(ephemeral=True)
                 return await ctx.respond(embed=embed_error, ephemeral=True)
 
-            if not is_owner(ctx):
+            try:
                 await member.edit(nick=nickname)
+            except Exception as error:
+                print(error)
 
             embed_success = discord.Embed(
                 title="Успешно",
@@ -754,6 +772,8 @@ async def statistic(ctx: discord.ApplicationContext,
     with Session() as session:
         user = session.query(Users).filter_by(discord_user=ctx.author.id).first()
 
+    channel_statistics = ctx.guild.get_channel(config["guild"]["ids-list"]["channels"]["statistics"])
+
     if ctx.channel.type == discord.ChannelType.private:
         embed_error = discord.Embed(
             title="Ошибка",
@@ -763,7 +783,7 @@ async def statistic(ctx: discord.ApplicationContext,
         await ctx.defer(ephemeral=True)
         return await ctx.respond(embed=embed_error, ephemeral=True)
 
-    if not any(admin_role.id in ALLOWED_ADMIN_ROLES for admin_role in ctx.author.roles):
+    if not any(admin_role.id in admin_roles for admin_role in ctx.author.roles):
         embed_error = discord.Embed(
             title="Ошибка",
             description="У вас нет прав",
@@ -772,7 +792,7 @@ async def statistic(ctx: discord.ApplicationContext,
         await ctx.defer(ephemeral=True)
         return await ctx.respond(embed=embed_error, ephemeral=True)
 
-    if user is None and not ctx.author.id == 463277343150964738:
+    if user is None:
         embed_error = discord.Embed(
             title="Ошибка",
             description="Перед использованием команд вам должны добавить ник.",
@@ -781,10 +801,10 @@ async def statistic(ctx: discord.ApplicationContext,
         await ctx.defer(ephemeral=True)
         return await ctx.respond(embed=embed_error, ephemeral=True)
 
-    if not ctx.channel_id == 1150832578018943118:
+    if not ctx.channel_id == config["guild"]["ids-list"]["channels"]["statistics"]:
         embed_error = discord.Embed(
             title="Ошибка",
-            description=f"Вы не можете использовать эту команду здесь. Команда может быть использована в <#1150832578018943118>.",
+            description=f"Вы не можете использовать эту команду здесь. Команда может быть использована в {channel_statistics.mention}",
             color=discord.Color(0xFF0000)
         )
         await ctx.defer(ephemeral=True)
@@ -804,7 +824,6 @@ async def statistic(ctx: discord.ApplicationContext,
         end_date = datetime.datetime.strptime(end_date, "%d-%m-%Y").date()
     except ValueError as error:
         embed_error = discord.Embed(title="Ошибка", description="Ошибка указанной даты.", color=discord.Color(0xFF0000))
-        print(error)
 
         await ctx.defer(ephemeral=True)
         return await ctx.respond(embed=embed_error, ephemeral=True)
@@ -823,8 +842,7 @@ async def statistic(ctx: discord.ApplicationContext,
         date_daily_tasks_filters.append(DailyTasks.date <= end_date.strftime("%Y-%m-%d"))
 
     with Session() as session:
-        contracts_query = session.query(Contracts.price, Contracts.reward, Contracts.status).filter(
-            and_(*date_contract_filters))
+        contracts_query = session.query(Contracts.price, Contracts.reward, Contracts.status).filter(and_(*date_contract_filters))
         actions_with_coffers_query = session.query(Coffers.action, Coffers.amount).filter(and_(*date_coffers_filters))
         daily_tasks_query = session.query(DailyTasks.type_rept).filter(and_(*date_daily_tasks_filters))
 
@@ -840,20 +858,15 @@ async def statistic(ctx: discord.ApplicationContext,
 
     embed = discord.Embed(title=embed_title, color=discord.Color(0xFFFFFF))
     embed.add_field(name="Куплено контрактов", value=contracts_query.count(), inline=False)
-    embed.add_field(name="Выполнено контрактов", value=contracts_query.filter(Contracts.status == True).count(),
-                    inline=False)
+    embed.add_field(name="Выполнено контрактов", value=contracts_query.filter(Contracts.status == True).count(), inline=False)
 
     clean_reward = final_reward - final_price
 
-    embed.add_field(name="Заработано с контрактов",
-                    value=f"{'{0:,}'.format(final_reward).replace(',', '.')}$ ({'{0:,}'.format(clean_reward).replace(',', '.')}$ чистых)")
-    embed.add_field(name="Потрачено на контракты", value=f"{'{0:,}'.format(final_price).replace(',', '.')}$",
-                    inline=False)
+    embed.add_field(name="Заработано с контрактов", value=f"{'{0:,}'.format(final_reward).replace(',', '.')}$ ({'{0:,}'.format(clean_reward).replace(',', '.')}$ чистых)")
+    embed.add_field(name="Потрачено на контракты", value=f"{'{0:,}'.format(final_price).replace(',', '.')}$", inline=False)
     embed.add_field(name="Выполнено ежедневных заданий", value=str(final_daily_tasks), inline=False)
-    embed.add_field(name="Положено на казну", value=f"{'{0:,}'.format(coffers_action_put).replace(',', '.')}$",
-                    inline=False)
-    embed.add_field(name="Снято с казны", value=f"{'{0:,}'.format(coffers_action_take).replace(',', '.')}$",
-                    inline=False)
+    embed.add_field(name="Положено на казну", value=f"{'{0:,}'.format(coffers_action_put).replace(',', '.')}$", inline=False)
+    embed.add_field(name="Снято с казны", value=f"{'{0:,}'.format(coffers_action_take).replace(',', '.')}$", inline=False)
 
     if not contracts_query.all() and not actions_with_coffers_query.all() and not daily_tasks_query.all():
         embed_desc = f"Статистика за {start_date.strftime('%d-%m-%Y')} не найдена!" if start_date == end_date else f"Статистика за {start_date.strftime('%d-%m-%Y')} по {end_date.strftime('%d-%m-%Y')} не найдена!"
@@ -886,6 +899,7 @@ async def ping(ctx: discord.ApplicationContext):
     embed.add_field(name="Время отклика БД", value=f"{query_time:.0f} мс.", inline=False)
     embed.add_field(name="Аптайм (время работы)", value=f"{int(hours)} часов {int(uptime.seconds/60)%60} минут", inline=False)
     embed.add_field(name="Версия бота", value=bot.version, inline=False)
+    embed.set_footer(text="WestCompany Bot", icon_url=bot.user.avatar.url)
 
     await ctx.defer(ephemeral=True)
     await ctx.respond(embed=embed, ephemeral=True)
@@ -900,6 +914,9 @@ async def delete_messages(ctx: discord.ApplicationContext, amount: int):
 @commands.check(is_owner)
 @bot.command(name="embed")
 async def embed_message(ctx: discord.ApplicationContext, content, *, message: str):
+    if content == "-":
+        content = ""
+
     lines = message.split('\n')
     title = lines[0]
     description = '\n'.join(lines[1:])
@@ -914,14 +931,6 @@ async def embed_message(ctx: discord.ApplicationContext, content, *, message: st
 
     await ctx.message.delete()
     await ctx.send(content, embed=embed)
-
-
-# @commands.check(is_owner)
-# @bot.command(name="db")
-# async def db(ctx: discord.ApplicationContext):
-#    Base.metadata.drop_all(engine)
-#    Base.metadata.create_all(engine)
-#    await ctx.send("БД сброшена")
 
 
 @commands.check(is_owner)
@@ -999,7 +1008,3 @@ async def db(ctx: discord.ApplicationContext):
 
     await ctx.message.delete()
     await channel.send(embeds=[embed_info_1, embed_info_2, embed_info_3, embed_info_4])
-
-@bot.command("test")
-async def test(ctx):
-    await cron_send_statistics()

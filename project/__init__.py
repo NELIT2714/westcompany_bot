@@ -52,6 +52,14 @@ scheduler.add_job(
     id="send_statistics"
 )
 
+admin_roles = [
+    config["guild"]["ids-list"]["roles"]["leader"],
+    config["guild"]["ids-list"]["roles"]["dep-leader"],
+    config["guild"]["ids-list"]["roles"]["admin"],
+    config["guild"]["ids-list"]["roles"]["manager"],
+    config["guild"]["ids-list"]["roles"]["dep-manager"]
+]
+
 contracts = [
     {"name": "Монетный двор", "cooldown": 24, "price": 100000, "reward": 500000,
      "description": "Скупщик договорился на крупную партию золотых монет, нужно помочь ему их найти, он щедро заплатит."},

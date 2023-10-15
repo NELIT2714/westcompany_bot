@@ -1,8 +1,36 @@
 {
     "bot": {
-        "token": "MTEwNzI3MzUyMjkwMTk1NDYwMA.Gt9Ppj.nK676XBzvOIvmDPH5swMjU48wZ8YmFdlBvi-bo",
+        "token": "MTE2MzEwNzY2OTAzMzM1NzQxMg.G5kHG-.aGUtlIaR02G4WHjla1EU3h94UNuLYYLOcKb3Xs",
         "prefix": "/",
-        "version": "1.3.100823 Stable release"
+        "version": "1.4.101523 Stable release"
+    },
+    "guild": {
+        "id": 1107054342223167623,
+        "ids-list": {
+            "channels": {
+                "information": 1107937278363455518,
+                "greetings": 1107937447129653288,
+                "ads": 1150831407627763803,
+                "daily-tasks": 1154735367157727274,
+                "statistics": 1150832578018943118,
+                "commands": 1150834041419989164,
+                "contracts": 1152728209213882500,
+                "warehouse": 1152570528842928168,
+                "coffers": 1152570793050521741
+            },
+            "roles": {
+                "leader": 1150827736596758540,
+                "dep-leader": 1150827802568962098,
+                "admin": 1159747509644709938,
+                "manager": 1150829408484069506,
+                "dep-manager": 1160565342599389307,
+                "highrank": 1160621942961877032,
+                "3-5": 1150829247305371648,
+                "1-2": 1150829150215622739,
+                "member": 1107286502825795624,
+                "guest": 1107296934936445019
+            }
+        }
     },
     "db": {
         "host": "localhost",
