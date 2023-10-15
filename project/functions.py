@@ -4,7 +4,7 @@ import asyncio
 
 from discord.ext import commands
 from discord.commands import Option
-from project import bot, engine, Base, Session, salary
+from project import bot, engine, Base, Session, salary, config
 from project.models import Contracts, Coffers, DailyTasks, Users, Warehouse
 from sqlalchemy import cast, Date, or_, and_
 
@@ -14,9 +14,9 @@ def is_owner(ctx):
 
 
 async def send_statistics():
-    guild = bot.get_guild(1107054342223167623)
-    role_member = guild.get_role(1107286502825795624)
-    channel = guild.get_channel(1150832578018943118)
+    guild = bot.get_guild(config["guild"]["id"])
+    role_member = guild.get_role(config["guild"]["ids-list"]["roles"]["member"])
+    channel = guild.get_channel(config["guild"]["ids-list"]["channels"]["statistics"])
 
     start_of_week = datetime.datetime.now() - datetime.timedelta(days=datetime.datetime.now().weekday())
 
@@ -36,7 +36,7 @@ async def send_statistics():
                 ).filter_by(discord_user=member.id).count()
 
             user_salary = daily_tasks * salary
-            user_stats += f"- {user.nickname} // {daily_tasks} ежедневных заданий // {'{0:,}'.format(user_salary).replace(',', '.')}$\n"
+            user_stats += f"- {user.nickname} ({member.mention}) // {daily_tasks} ежедневных заданий // {'{0:,}'.format(user_salary).replace(',', '.')}$\n"
 
     statistics_embed = discord.Embed(
         title=f"Зарплаты участников за период {start_of_week.strftime('%d-%m-%Y')} - {datetime.datetime.now().strftime('%d-%m-%Y')}",

@@ -12,8 +12,8 @@ async def on_ready():
     bot.start_time = datetime.datetime.now()
     Base.metadata.create_all(engine)
     await bot.change_presence(
-        status=discord.Status.offline,
-        activity=discord.Game(name="Arizona V")
+        status=discord.Status.online,
+        activity=discord.Game(name=config["bot"]["activity"])
     )
     print(f"Logged in as {bot.user.name} | ID: {bot.user.id}")
 
@@ -64,8 +64,12 @@ async def on_member_update(before, after):
             await after.send(embed=embed_error)
 
     for admin_role in admin_roles:
-        if admin_role in after.roles:
+        role = discord.utils.get(after.guild.roles, id=admin_role)
+        if role in after.roles:
             await after.add_roles(highrank)
+            break
+        else:
+            continue
 
     if len(after.roles) == 1 and not guest_role in after.roles:
         await after.add_roles(guest_role)

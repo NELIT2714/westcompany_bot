@@ -47,7 +47,7 @@ async def collection(ctx: discord.ApplicationContext, *, message: str):
         await ctx.defer(ephemeral=True)
         return await ctx.respond(embed=embed_error, ephemeral=True)
 
-    if not ctx.channel_id == config["guild"]["ids-list"]["channels"]["ads"]:
+    if not ctx.channel_id == config["guild"]["ids-list"]["channels"]["commands"]:
         embed_error = discord.Embed(
             title="Ошибка",
             description=f"Вы не можете использовать эту команду здесь. Команда может быть использована в {channel_ads.mention}",
@@ -58,7 +58,7 @@ async def collection(ctx: discord.ApplicationContext, *, message: str):
 
     embed = discord.Embed(
         title="Новое объявление",
-        description=message,
+        description=f"Пользователь {user.nickname} отправил объявление для участников сообщества.\n**Сообщение:** {message}",
         color=discord.Color(0xFFFFFF)
     )
     embed.set_thumbnail(url=bot.user.avatar.url)
@@ -67,7 +67,7 @@ async def collection(ctx: discord.ApplicationContext, *, message: str):
 
     embed_success = discord.Embed(
         title="Успешно",
-        description="Вы успешно сообщили о сборе.",
+        description="Вы успешно отправили объявление.",
         color=discord.Color(0x18B542)
     )
 
@@ -82,7 +82,7 @@ async def collection(ctx: discord.ApplicationContext, *, message: str):
         else:
             continue
 
-    await channel.send(role_member.mention, embed=embed)
+    await channel_ads.send(role_member.mention, embed=embed)
     await ctx.respond(embed=embed_success, ephemeral=True)
     await asyncio.gather(*tasks)
 
@@ -226,7 +226,7 @@ async def contract(ctx: discord.ApplicationContext,
 
         embed = discord.Embed(
             title="Взят новый контракт",
-            description=f"Пользователь {user.nickname} взял контракт {contract}. Зайдите в игру и выполните условия контракта",
+            description=f"Контракт {contract} куплен. Зайдите в игру и выполните условия контракта",
             color=0xFFFFFF
         )
 
