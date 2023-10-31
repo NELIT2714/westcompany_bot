@@ -4,7 +4,9 @@ import asyncio
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+
 from discord.ext import commands
+
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
@@ -34,14 +36,12 @@ port = config["db"]["port"]
 bot = commands.Bot(command_prefix=prefix, intents=intents)
 bot.remove_command("help")
 
-# Database
 engine = create_engine(f"mysql+pymysql://{user}:{password}@{host}/{database}")
 Session = sessionmaker(bind=engine)
 
 Base = declarative_base()
 
 bot.version = config["bot"]["version"]
-salary = config["other"]["salary"]["daily-task"]
 
 from project.functions import cron_send_statistics
 
@@ -59,6 +59,11 @@ admin_roles = [
     config["guild"]["ids-list"]["roles"]["manager"],
     config["guild"]["ids-list"]["roles"]["dep-manager"]
 ]
+dev_channels = [
+    config["guild"]["logs"]["server"],
+    config["guild"]["logs"]["messages"],
+    config["guild"]["logs"]["users"]
+]
 
 contracts = [
     {"name": "Монетный двор", "cooldown": 24, "price": 100000, "reward": 500000,
@@ -73,6 +78,6 @@ contracts = [
 ]
 tasks = []
 
-from project.commands import collection, warehouse, contract, coffers, ping, statistic, rept
-from project.events import on_ready
+from project.events import on_ready, on_member_update, on_member_join, on_member_remove, on_message, on_message_edit, on_message_delete
+from project.commands import cmd_ad, cmd_clear, cmd_coffers, cmd_contract, cmd_embed, cmd_info, cmd_member, cmd_ping, cmd_rept, cmd_salary, cmd_statistics, cmd_warehouse, cmd_profile, cmd_member_info
 from project.models import Contracts, Coffers, DailyTasks, Users, Warehouse

@@ -2,7 +2,7 @@
     "bot": {
         "token": "MTE2MzEwNzY2OTAzMzM1NzQxMg.G5kHG-.aGUtlIaR02G4WHjla1EU3h94UNuLYYLOcKb3Xs",
         "prefix": "/",
-        "version": "1.4.101523 Stable release",
+        "version": "1.5.10xx23 Stable release",
         "activity": "Arizona V"
     },
     "guild": {
@@ -31,6 +31,11 @@
                 "member": 1163104144740077630,
                 "guest": 1163104144740077629
             }
+        },
+        "logs": {
+            "server": 1163104146455535695,
+            "messages": 1163104146455535693,
+            "users": 1164206310850572378
         }
     },
     "db": {

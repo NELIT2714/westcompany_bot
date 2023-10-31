@@ -1,6 +1,7 @@
 import datetime
 
 from sqlalchemy import Column, Integer, String, Boolean, Date, BigInteger, Text
+from sqlalchemy import func
 from project import Base
 
 
@@ -13,7 +14,7 @@ class Contracts(Base):
     price = Column(Integer, nullable=True)
     reward = Column(Integer, nullable=True)
     status = Column(Boolean, unique=False, nullable=True)
-    date = Column(Date, default=datetime.datetime.now())
+    date = Column(Date, default=func.current_date())
 
     def __init__(self, discord_user, contract_name, price, reward, status):
         self.discord_user = discord_user
@@ -30,7 +31,7 @@ class Coffers(Base):
     discord_user = Column(BigInteger, nullable=False)
     action = Column(String(30), nullable=True)
     amount = Column(BigInteger, nullable=False)
-    date = Column(Date, default=datetime.datetime.now())
+    date = Column(Date, default=func.current_date())
 
     def __init__(self, discord_user, action, amount):
         self.discord_user = discord_user
@@ -45,7 +46,7 @@ class DailyTasks(Base):
     discord_user = Column(BigInteger, nullable=False)
     type_rept = Column(String(50), nullable=False)
     url = Column(Text, nullable=False)
-    date = Column(Date, default=datetime.datetime.now())
+    date = Column(Date, default=func.current_date())
 
     def __init__(self, discord_user, type_rept, url):
         self.discord_user = discord_user
@@ -59,11 +60,13 @@ class Users(Base):
     id = Column(Integer, primary_key=True)
     discord_user = Column(BigInteger, nullable=False, unique=True)
     nickname = Column(String(50), nullable=False)
-    date = Column(Date, default=datetime.datetime.now())
+    bank_account = Column(Integer, nullable=True)
+    date = Column(Date, default=func.current_date())
 
-    def __init__(self, discord_user, nickname):
+    def __init__(self, discord_user, nickname, bank_account):
         self.discord_user = discord_user
         self.nickname = nickname
+        self.bank_account = bank_account
 
 
 class Warehouse(Base):
@@ -73,7 +76,7 @@ class Warehouse(Base):
     discord_user = Column(BigInteger, nullable=False)
     action = Column(String(30), nullable=True)
     item = Column(Text, nullable=False)
-    date = Column(Date, default=datetime.datetime.now())
+    date = Column(Date, default=func.current_date())
 
     def __init__(self, discord_user, action, item):
         self.discord_user = discord_user
